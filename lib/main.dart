@@ -67,8 +67,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:async';
 import 'dart:io' show HttpServer;
-
+import 'package:flutter_html/flutter_html.dart';
+import 'package:flutter/material.dart';
+import 'package:chewie/chewie.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:video_player/video_player.dart';
 import 'package:flutter_web_auth/flutter_web_auth.dart';
+
+import 'package:html/parser.dart' show parse;
+import 'package:html/dom.dart' show dom;
+
+import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
+
+
 
 const html = """
 <!DOCTYPE html>
@@ -164,26 +175,336 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
+    var document = parse(
+        '<body>Hello world! <a href="www.html5rocks.com">HTML5 rocks!');
+    print(document.outerHtml);
+
+    const text = """
+    <figure class="tmblr-full"  data-npf='{"type":"video","provider":"tumblr","url":"https://va.media.tumblr.com/tumblr_qumsy5jvCu1qzezhm.mp4","media":{"url":"https://va.media.tumblr.com/tumblr_qumsy5jvCu1qzezhm.mp4","type":"video/mp4","width":360,"height":640},"poster":[{"url":"https://64.media.tumblr.com/tumblr_qumsy5jvCu1qzezhm_frame1.jpg","type":"image/jpeg","width":360,"height":640}],"filmstrip":{"url":"https://64.media.tumblr.com/previews/tumblr_qumsy5jvCu1qzezhm_filmstrip.jpg","type":"image/jpeg","width":2000,"height":357}}'>
+  	  <video controls="controls" muted="muted" poster="https://64.media.tumblr.com/tumblr_qumsy5jvCu1qzezhm_frame1.jpg">
+	  	  <source src="https://va.media.tumblr.com/tumblr_qumsy5jvCu1qzezhm.mp4" type="video/mp4"></source>
+	    </video>
+    </figure>
+    """;
+
+    final css = Style.fromCss(
+        "figure{height:400px;} video{height:400px;} body {margin: 0; padding: 0;}",
+            (css, errors) {
+          print(css);
+          print(errors);
+        });
+
     return MaterialApp(
       home: Scaffold(
         appBar: AppBar(
           title: const Text('Web Auth example'),
         ),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              Text('Status: $_status\n'),
-              const SizedBox(height: 80),
-              RaisedButton(
-                child: Text('Authenticate'),
-                onPressed: () { this.authenticate(); },
+        body: Container(
+          // color: Colors.red,
+          // height: 400,
+
+          child: HtmlWidget(text),
+
+          // child: ChewieDemo(),
+
+        //     child: Html(
+        //   style: css,
+        //   data: "<body>" + text + "</body>",
+        //   shrinkWrap: true,
+        //   onImageTap: null,
+        // )),
+        // body: Center(
+        //   child: Column(
+        //     mainAxisAlignment: MainAxisAlignment.center,
+        //     children: <Widget>[
+        //       Text('Status: $_status\n'),
+        //       const SizedBox(height: 80),
+        //       RaisedButton(
+        //         child: Text('Authenticate'),
+        //         onPressed: () { this.authenticate(); },
+        //       ),
+        //     ],
+        //   ),
+        // ),
+      ),
+    ));
+  }
+}
+
+
+class ChewieDemo extends StatefulWidget {
+  const ChewieDemo({
+    Key? key,
+    this.title = 'Chewie Demo',
+  }) : super(key: key);
+
+  final String title;
+
+  @override
+  State<StatefulWidget> createState() {
+    return _ChewieDemoState();
+  }
+}
+
+class _ChewieDemoState extends State<ChewieDemo> {
+  TargetPlatform? _platform;
+  late VideoPlayerController _videoPlayerController1;
+  late VideoPlayerController _videoPlayerController2;
+  ChewieController? _chewieController;
+
+  @override
+  void initState() {
+    super.initState();
+    initializePlayer();
+  }
+
+  @override
+  void dispose() {
+    _videoPlayerController1.dispose();
+    _videoPlayerController2.dispose();
+    _chewieController?.dispose();
+    super.dispose();
+  }
+
+  Future<void> initializePlayer() async {
+    _videoPlayerController1 = VideoPlayerController.network(
+        'https://va.media.tumblr.com/tumblr_qumsy5jvCu1qzezhm.mp4');
+        // 'https://assets.mixkit.co/videos/preview/mixkit-daytime-city-traffic-aerial-view-56-large.mp4');
+    _videoPlayerController2 = VideoPlayerController.network(
+        'https://va.media.tumblr.com/tumblr_qumsy5jvCu1qzezhm.mp4');
+        // 'https://assets.mixkit.co/videos/preview/mixkit-a-girl-blowing-a-bubble-gum-at-an-amusement-park-1226-large.mp4');
+    await Future.wait([
+      _videoPlayerController1.initialize(),
+      _videoPlayerController2.initialize()
+    ]);
+    _chewieController = ChewieController(
+      videoPlayerController: _videoPlayerController1,
+      autoPlay: true,
+      looping: true,
+      subtitle: Subtitles([
+        Subtitle(
+          index: 0,
+          start: Duration.zero,
+          end: const Duration(seconds: 10),
+          text: 'Hello from subtitles',
+        ),
+        Subtitle(
+          index: 0,
+          start: const Duration(seconds: 10),
+          end: const Duration(seconds: 20),
+          text: 'Whats up? :)',
+        ),
+      ]),
+      subtitleBuilder: (context, subtitle) => Container(
+        padding: const EdgeInsets.all(10.0),
+        child: Text(
+          subtitle,
+          style: const TextStyle(color: Colors.white),
+        ),
+      ),
+      // Try playing around with some of these other options:
+
+      // showControls: false,
+      // materialProgressColors: ChewieProgressColors(
+      //   playedColor: Colors.red,
+      //   handleColor: Colors.blue,
+      //   backgroundColor: Colors.grey,
+      //   bufferedColor: Colors.lightGreen,
+      // ),
+      // placeholder: Container(
+      //   color: Colors.grey,
+      // ),
+      // autoInitialize: true,
+    );
+    setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: widget.title,
+      theme: AppTheme.light.copyWith(
+        platform: _platform ?? Theme.of(context).platform,
+      ),
+      home: Scaffold(
+        appBar: AppBar(
+          title: Text(widget.title),
+        ),
+        body: Column(
+          children: <Widget>[
+            Expanded(
+              child: Center(
+                child: _chewieController != null &&
+                    _chewieController!
+                        .videoPlayerController.value.isInitialized
+                    ? Chewie(
+                  controller: _chewieController!,
+                )
+                    : Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: const [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 20),
+                    Text('Loading'),
+                  ],
+                ),
               ),
-            ],
-          ),
+            ),
+            TextButton(
+              onPressed: () {
+                _chewieController?.enterFullScreen();
+              },
+              child: const Text('Fullscreen'),
+            ),
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: TextButton(
+                    onPressed: () {
+                      setState(() {
+                        _videoPlayerController1.pause();
+                        _videoPlayerController1.seekTo(const Duration());
+                        // _chewieController = _chewieController!.copyWith(
+                        //   videoPlayerController: _videoPlayerController1,
+                        //   autoPlay: true,
+                        //   looping: true,
+                        //   subtitle: Subtitles([
+                        //     Subtitle(
+                        //       index: 0,
+                        //       start: Duration.zero,
+                        //       end: const Duration(seconds: 10),
+                        //       text: 'Hello from subtitles',
+                        //     ),
+                        //     Subtitle(
+                        //       index: 0,
+                        //       start: const Duration(seconds: 10),
+                        //       end: const Duration(seconds: 20),
+                        //       text: 'Whats up? :)',
+                        //     ),
+                        //   ]),
+                        //   subtitleBuilder: (context, subtitle) => Container(
+                        //     padding: const EdgeInsets.all(10.0),
+                        //     child: Text(
+                        //       subtitle,
+                        //       style: const TextStyle(color: Colors.white),
+                        //     ),
+                        //   ),
+                        // );
+                      });
+                    },
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 16.0),
+                      child: Text("Landscape Video"),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: TextButton(
+                    onPressed: () {
+                      setState(() {
+                        _videoPlayerController2.pause();
+                        _videoPlayerController2.seekTo(const Duration());
+                        // _chewieController = _chewieController!.copyWith(
+                        //   videoPlayerController: _videoPlayerController2,
+                        //   autoPlay: true,
+                        //   looping: true,
+                        //   /* subtitle: Subtitles([
+                        //     Subtitle(
+                        //       index: 0,
+                        //       start: Duration.zero,
+                        //       end: const Duration(seconds: 10),
+                        //       text: 'Hello from subtitles',
+                        //     ),
+                        //     Subtitle(
+                        //       index: 0,
+                        //       start: const Duration(seconds: 10),
+                        //       end: const Duration(seconds: 20),
+                        //       text: 'Whats up? :)',
+                        //     ),
+                        //   ]),
+                        //   subtitleBuilder: (context, subtitle) => Container(
+                        //     padding: const EdgeInsets.all(10.0),
+                        //     child: Text(
+                        //       subtitle,
+                        //       style: const TextStyle(color: Colors.white),
+                        //     ),
+                        //   ), */
+                        // );
+                      });
+                    },
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 16.0),
+                      child: Text("Portrait Video"),
+                    ),
+                  ),
+                )
+              ],
+            ),
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: TextButton(
+                    onPressed: () {
+                      setState(() {
+                        _platform = TargetPlatform.android;
+                      });
+                    },
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 16.0),
+                      child: Text("Android controls"),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: TextButton(
+                    onPressed: () {
+                      setState(() {
+                        _platform = TargetPlatform.iOS;
+                      });
+                    },
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 16.0),
+                      child: Text("iOS controls"),
+                    ),
+                  ),
+                )
+              ],
+            ),
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: TextButton(
+                    onPressed: () {
+                      setState(() {
+                        _platform = TargetPlatform.windows;
+                      });
+                    },
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 16.0),
+                      child: Text("Desktop controls"),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
   }
 }
+class AppTheme {
+  static final light = ThemeData(
+    brightness: Brightness.light,
+    accentColor: Colors.red,
+    disabledColor: Colors.grey.shade400,
+    visualDensity: VisualDensity.adaptivePlatformDensity,
+  );
 
+  static final dark = ThemeData(
+    brightness: Brightness.dark,
+    accentColor: Colors.red,
+    disabledColor: Colors.grey.shade400,
+    visualDensity: VisualDensity.adaptivePlatformDensity,
+  );
+}
